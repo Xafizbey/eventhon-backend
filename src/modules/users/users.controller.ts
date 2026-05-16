@@ -1,0 +1,74 @@
+import {
+  Controller, Get, Patch, Delete, Body, Param, Query, UseGuards, HttpCode, HttpStatus,
+} from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { UsersService, UpdateProfileDto } from './users.service';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { UserRole } from '../../common/enums/roles.enum';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+
+@ApiTags('Users')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
+@Controller('users')
+export class UsersController {
+  constructor(private readonly usersService: UsersService) {}
+
+  @Get('me')
+  @ApiOperation({ summary: 'Get current user full profile' })
+  async getProfile(@CurrentUser('id') userId: string) {
+    return this.usersService.findById(userId);
+  }
+
+  @Patch('me')
+  @ApiOperation({ summary: 'Update current user profile' })
+  async updateProfile(
+    @CurrentUser('id') userId: string,
+    @Body() dto: UpdateProfileDto,
+  ) {
+    return this.usersService.updateProfile(userId, dto);
+  }
+
+  @Get('me/workload')
+  @ApiOperation({ summary: 'Get current user workload and task summary' })
+  async getWorkload(@CurrentUser('id') userId: string) {
+    return this.usersService.getWorkload(userId);
+  }
+
+  @Get('search')
+  @ApiOperation({ summary: 'Search users by name or email' })
+  async search(
+    @Query('q') query: string,
+    @Query('orgId') orgId?: string,
+  ) {
+    return this.usersService.searchUsers(query, orgId);
+  }
+
+  @Get(':userId')
+  @ApiOperation({ summary: 'Get user profile by ID' })
+  async findOne(@Param('userId') userId: string) {
+    return this.usersService.findById(userId);
+  }
+
+  // Admin endpoints
+  @Get()
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: '[Admin] Get all platform users' })
+  async findAll(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.usersService.findAll(parseInt(page || '1', 10), parseInt(limit || '20', 10));
+  }
+
+  @Patch(':userId/suspend')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: '[Admin] Suspend a user account' })
+  async suspend(@Param('userId') userId: string) {
+    return this.usersService.suspendUser(userId);
+  }
+}

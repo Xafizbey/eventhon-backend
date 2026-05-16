@@ -1,0 +1,761 @@
+// =============================================================================
+// EVENTHON - Intelligent Project Management System
+// Prisma Database Schema
+// PostgreSQL + Prisma ORM
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_DIRECT_URL")
+}
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+enum UserRole {
+  SUPER_ADMIN
+  ORG_OWNER
+  PROJECT_MANAGER
+  TEAM_MEMBER
+  VIEWER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING_VERIFICATION
+}
+
+enum OrgPlan {
+  FREE
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum OrgStatus {
+  ACTIVE
+  SUSPENDED
+  TRIAL
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MANAGER
+  MEMBER
+  VIEWER
+}
+
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  ARCHIVED
+  CANCELLED
+}
+
+enum ProjectVisibility {
+  PUBLIC
+  PRIVATE
+  INTERNAL
+}
+
+enum TaskStatus {
+  BACKLOG
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  DONE
+  CANCELLED
+}
+
+enum TaskPriority {
+  URGENT
+  HIGH
+  MEDIUM
+  LOW
+  NO_PRIORITY
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  PUSH
+}
+
+enum NotificationType {
+  TASK_ASSIGNED
+  TASK_UPDATED
+  TASK_OVERDUE
+  TASK_COMMENT
+  TASK_MENTIONED
+  PROJECT_INVITED
+  PROJECT_UPDATED
+  AI_WARNING
+  AI_RECOMMENDATION
+  SYSTEM
+}
+
+enum ActivityAction {
+  CREATED
+  UPDATED
+  DELETED
+  ASSIGNED
+  UNASSIGNED
+  STATUS_CHANGED
+  PRIORITY_CHANGED
+  COMMENTED
+  MENTIONED
+  ATTACHED
+  LOGGED_IN
+  LOGGED_OUT
+  INVITED
+  JOINED
+  LEFT
+  ARCHIVED
+  RESTORED
+  AI_ANALYZED
+}
+
+enum ActivityEntity {
+  USER
+  PROJECT
+  TASK
+  COMMENT
+  ORGANIZATION
+  FILE
+  NOTIFICATION
+}
+
+enum AIPredictionType {
+  ASSIGNEE_RECOMMENDATION
+  COMPLETION_TIME_ESTIMATE
+  DEADLINE_RISK
+  WORKLOAD_ANALYSIS
+  TASK_PRIORITY_SUGGESTION
+}
+
+enum AIPredictionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum FileStorageProvider {
+  LOCAL
+  S3
+  GCS
+  AZURE_BLOB
+}
+
+enum TaskRecurrenceType {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+  CUSTOM
+}
+
+enum DependencyType {
+  BLOCKS
+  BLOCKED_BY
+  DUPLICATES
+  RELATES_TO
+}
+
+// =============================================================================
+// ORGANIZATIONS (Multi-Tenancy Root)
+// =============================================================================
+
+model Organization {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String?
+  logoUrl     String?
+  website     String?
+  plan        OrgPlan   @default(FREE)
+  status      OrgStatus @default(TRIAL)
+
+  // Billing
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  billingEmail         String?
+  trialEndsAt          DateTime?
+  subscriptionEndsAt   DateTime?
+
+  // Settings
+  settings Json @default("{}")
+
+  // Timestamps
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relations
+  members            OrganizationMember[]
+  invitations        OrganizationInvitation[]
+  projects           Project[]
+  notifications      Notification[]
+  activities         Activity[]
+  aiPredictions      AIPrediction[]
+  files              File[]
+  analyticsSnapshots AnalyticsSnapshot[]
+
+  @@index([slug])
+  @@index([status])
+  @@map("organizations")
+}
+
+model OrganizationMember {
+  id             String     @id @default(cuid())
+  organizationId String
+  userId         String
+  role           MemberRole @default(MEMBER)
+  permissions    Json       @default("[]")
+  joinedAt       DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([organizationId])
+  @@index([userId])
+  @@map("organization_members")
+}
+
+model OrganizationInvitation {
+  id             String     @id @default(cuid())
+  organizationId String
+  email          String
+  role           MemberRole @default(MEMBER)
+  token          String     @unique
+  invitedById    String
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  createdAt      DateTime   @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedBy    User         @relation(fields: [invitedById], references: [id])
+
+  @@index([token])
+  @@index([email])
+  @@index([organizationId])
+  @@map("organization_invitations")
+}
+
+// =============================================================================
+// USERS
+// =============================================================================
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String?
+  firstName    String
+  lastName     String
+  avatarUrl    String?
+  bio          String?
+  timezone     String     @default("UTC")
+  locale       String     @default("en")
+  role         UserRole   @default(TEAM_MEMBER)
+  status       UserStatus @default(PENDING_VERIFICATION)
+
+  // Email verification
+  emailVerifiedAt   DateTime?
+  verificationToken String?
+
+  // OAuth
+  oauthProvider String?
+  oauthId       String?
+
+  // Settings & preferences
+  preferences Json @default("{}")
+  metadata    Json @default("{}")
+
+  // Timestamps
+  lastActiveAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  // Relations
+  sessions                Session[]
+  organizationMemberships OrganizationMember[]
+  invitationsSent         OrganizationInvitation[]
+  projectMemberships      ProjectMember[]
+  ownedProjects           Project[]                @relation("ProjectOwner")
+  assignedTasks           Task[]                   @relation("TaskAssignee")
+  createdTasks            Task[]                   @relation("TaskCreator")
+  comments                Comment[]
+  notifications           Notification[]
+  activities              Activity[]
+  activityLogs            ActivityLog[]
+  files                   File[]
+  aiPredictions           AIPrediction[]
+  workloadMetrics         WorkloadMetric[]
+
+  @@index([email])
+  @@index([status])
+  @@index([role])
+  @@map("users")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  refreshToken String   @unique
+  deviceInfo   Json     @default("{}")
+  ipAddress    String?
+  userAgent    String?
+  isValid      Boolean  @default(true)
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([refreshToken])
+  @@map("sessions")
+}
+
+// =============================================================================
+// PROJECTS
+// =============================================================================
+
+model Project {
+  id             String            @id @default(cuid())
+  organizationId String
+  ownerId        String
+  name           String
+  description    String?
+  slug           String
+  icon           String?
+  color          String?
+  status         ProjectStatus     @default(PLANNING)
+  visibility     ProjectVisibility @default(PRIVATE)
+  startDate      DateTime?
+  dueDate        DateTime?
+  completedAt    DateTime?
+
+  // Settings
+  settings Json @default("{}")
+  metadata Json @default("{}")
+
+  // Timestamps
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relations
+  organization  Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  owner         User            @relation("ProjectOwner", fields: [ownerId], references: [id])
+  members       ProjectMember[]
+  tasks         Task[]
+  labels        Label[]
+  workflows     Workflow[]
+  files         File[]
+  activities    Activity[]
+  aiPredictions AIPrediction[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+  @@index([ownerId])
+  @@index([status])
+  @@map("projects")
+}
+
+model ProjectMember {
+  id        String     @id @default(cuid())
+  projectId String
+  userId    String
+  role      MemberRole @default(MEMBER)
+  joinedAt  DateTime   @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([projectId])
+  @@index([userId])
+  @@map("project_members")
+}
+
+model Workflow {
+  id          String  @id @default(cuid())
+  projectId   String
+  name        String
+  description String?
+  color       String?
+  position    Int     @default(0)
+  isDefault   Boolean @default(false)
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks   Task[]
+
+  @@index([projectId])
+  @@map("workflows")
+}
+
+model Label {
+  id        String @id @default(cuid())
+  projectId String
+  name      String
+  color     String
+  position  Int    @default(0)
+
+  project Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks   TaskLabel[]
+
+  @@unique([projectId, name])
+  @@index([projectId])
+  @@map("labels")
+}
+
+// =============================================================================
+// TASKS (Core Entity)
+// =============================================================================
+
+model Task {
+  id             String       @id @default(cuid())
+  projectId      String
+  workflowId     String?
+  parentTaskId   String?
+  assigneeId     String?
+  creatorId      String
+  title          String
+  description    String?
+  status         TaskStatus   @default(BACKLOG)
+  priority       TaskPriority @default(NO_PRIORITY)
+  position       Float        @default(0)
+  estimatedHours Float?
+  actualHours    Float?
+  storyPoints    Int?
+  startDate      DateTime?
+  dueDate        DateTime?
+  completedAt    DateTime?
+
+  // Recurrence
+  isRecurring      Boolean             @default(false)
+  recurrenceType   TaskRecurrenceType?
+  recurrenceRule   Json?
+  recurrenceEndsAt DateTime?
+
+  // Kanban
+  boardPosition  Int?
+  columnPosition Int?
+
+  // Metadata
+  customFields Json @default("{}")
+  metadata     Json @default("{}")
+
+  // Timestamps
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relations
+  project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  workflow      Workflow?      @relation(fields: [workflowId], references: [id])
+  assignee      User?          @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  creator       User           @relation("TaskCreator", fields: [creatorId], references: [id])
+  parentTask    Task?          @relation("SubTasks", fields: [parentTaskId], references: [id])
+  subTasks      Task[]         @relation("SubTasks")
+  labels        TaskLabel[]
+  comments      Comment[]
+  attachments   File[]
+  activities    Activity[]
+  aiPredictions AIPrediction[]
+  timeEntries   TimeEntry[]
+
+  // Dependencies
+  blockedBy TaskDependency[] @relation("BlockedByTask")
+  blocking  TaskDependency[] @relation("BlockingTask")
+
+  @@index([projectId])
+  @@index([assigneeId])
+  @@index([status])
+  @@index([priority])
+  @@index([dueDate])
+  @@index([parentTaskId])
+  @@index([workflowId])
+  @@map("tasks")
+}
+
+model TaskLabel {
+  taskId  String
+  labelId String
+
+  task  Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  label Label @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, labelId])
+  @@map("task_labels")
+}
+
+model TaskDependency {
+  id             String         @id @default(cuid())
+  taskId         String
+  dependsOnId    String
+  dependencyType DependencyType @default(BLOCKS)
+  createdAt      DateTime       @default(now())
+
+  task      Task @relation("BlockingTask", fields: [taskId], references: [id], onDelete: Cascade)
+  dependsOn Task @relation("BlockedByTask", fields: [dependsOnId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, dependsOnId])
+  @@map("task_dependencies")
+}
+
+model TimeEntry {
+  id          String    @id @default(cuid())
+  taskId      String
+  userId      String
+  description String?
+  startedAt   DateTime
+  endedAt     DateTime?
+  durationMs  Int?
+  createdAt   DateTime  @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([userId])
+  @@map("time_entries")
+}
+
+// =============================================================================
+// COMMENTS
+// =============================================================================
+
+model Comment {
+  id          String    @id @default(cuid())
+  taskId      String
+  authorId    String
+  parentId    String?
+  content     String
+  contentHtml String?
+  mentions    Json      @default("[]")
+  reactions   Json      @default("{}")
+  isEdited    Boolean   @default(false)
+  editedAt    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  task    Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author  User      @relation(fields: [authorId], references: [id])
+  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies Comment[] @relation("CommentReplies")
+
+  @@index([taskId])
+  @@index([authorId])
+  @@map("comments")
+}
+
+// =============================================================================
+// FILES & ATTACHMENTS
+// =============================================================================
+
+model File {
+  id             String              @id @default(cuid())
+  organizationId String
+  uploadedById   String
+  projectId      String?
+  taskId         String?
+  name           String
+  originalName   String
+  mimeType       String
+  size           Int
+  storageKey     String
+  storageUrl     String?
+  provider       FileStorageProvider @default(LOCAL)
+  width          Int?
+  height         Int?
+  thumbnailKey   String?
+  metadata       Json                @default("{}")
+  createdAt      DateTime            @default(now())
+  deletedAt      DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploadedBy   User         @relation(fields: [uploadedById], references: [id])
+  project      Project?     @relation(fields: [projectId], references: [id])
+  task         Task?        @relation(fields: [taskId], references: [id])
+
+  @@index([organizationId])
+  @@index([taskId])
+  @@index([uploadedById])
+  @@map("files")
+}
+
+// =============================================================================
+// NOTIFICATIONS
+// =============================================================================
+
+model Notification {
+  id             String              @id @default(cuid())
+  organizationId String
+  recipientId    String
+  type           NotificationType
+  channel        NotificationChannel @default(IN_APP)
+  title          String
+  message        String
+  data           Json                @default("{}")
+  isRead         Boolean             @default(false)
+  readAt         DateTime?
+  sentAt         DateTime?
+  scheduledFor   DateTime?
+  createdAt      DateTime            @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  recipient    User         @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId])
+  @@index([organizationId])
+  @@index([isRead])
+  @@index([type])
+  @@map("notifications")
+}
+
+// =============================================================================
+// ACTIVITY & AUDIT LOG
+// =============================================================================
+
+model Activity {
+  id             String         @id @default(cuid())
+  organizationId String
+  projectId      String?
+  taskId         String?
+  actorId        String
+  entity         ActivityEntity
+  entityId       String
+  action         ActivityAction
+  before         Json?
+  after          Json?
+  metadata       Json           @default("{}")
+  createdAt      DateTime       @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project      Project?     @relation(fields: [projectId], references: [id])
+  task         Task?        @relation(fields: [taskId], references: [id])
+  actor        User         @relation(fields: [actorId], references: [id])
+
+  @@index([organizationId])
+  @@index([projectId])
+  @@index([taskId])
+  @@index([actorId])
+  @@index([entity, entityId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("activities")
+}
+
+// Audit log for security-sensitive operations
+model ActivityLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String
+  resource   String
+  resourceId String?
+  ipAddress  String?
+  userAgent  String?
+  status     String   @default("success")
+  metadata   Json     @default("{}")
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([action])
+  @@index([resource])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
+// =============================================================================
+// AI PREDICTIONS
+// =============================================================================
+
+model AIPrediction {
+  id             String             @id @default(cuid())
+  organizationId String
+  projectId      String?
+  taskId         String?
+  requestedById  String
+  type           AIPredictionType
+  status         AIPredictionStatus @default(PENDING)
+  input          Json               @default("{}")
+  output         Json?
+  confidence     Float?
+  modelVersion   String?
+  processingMs   Int?
+  errorMessage   String?
+  expiresAt      DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project      Project?     @relation(fields: [projectId], references: [id])
+  task         Task?        @relation(fields: [taskId], references: [id])
+  requestedBy  User         @relation(fields: [requestedById], references: [id])
+
+  @@index([organizationId])
+  @@index([taskId])
+  @@index([type])
+  @@index([status])
+  @@map("ai_predictions")
+}
+
+// =============================================================================
+// ANALYTICS
+// =============================================================================
+
+model WorkloadMetric {
+  id             String   @id @default(cuid())
+  userId         String
+  date           DateTime @db.Date
+  activeTasks    Int      @default(0)
+  completedTasks Int      @default(0)
+  overdueTasks   Int      @default(0)
+  loggedHours    Float    @default(0)
+  score          Float    @default(0)
+  metadata       Json     @default("{}")
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@index([date])
+  @@map("workload_metrics")
+}
+
+model AnalyticsSnapshot {
+  id             String   @id @default(cuid())
+  organizationId String
+  projectId      String?
+  period         String
+  periodStart    DateTime
+  periodEnd      DateTime
+  metrics        Json
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([period])
+  @@index([periodStart])
+  @@map("analytics_snapshots")
+}

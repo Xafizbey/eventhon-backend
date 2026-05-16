@@ -1,0 +1,136 @@
+version: '3.9'
+
+services:
+  # ─── Backend API ────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
+    container_name: eventhon_api
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://eventhon:eventhon_pass@postgres:5432/eventhon_db
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - eventhon_network
+    volumes:
+      - uploads:/app/uploads
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:3000/api/v1/health']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ─── Development Mode ────────────────────────────────────────────────────────
+  api-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev-deps
+    container_name: eventhon_api_dev
+    command: npm run start:dev
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://eventhon:eventhon_pass@postgres:5432/eventhon_db
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - eventhon_network
+    profiles:
+      - dev
+
+  # ─── PostgreSQL ───────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: eventhon_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: eventhon
+      POSTGRES_PASSWORD: eventhon_pass
+      POSTGRES_DB: eventhon_db
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - eventhon_network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U eventhon -d eventhon_db']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Redis ────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: eventhon_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    networks:
+      - eventhon_network
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── pgAdmin (Dev only) ──────────────────────────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: eventhon_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@eventhon.io
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - '5050:80'
+    networks:
+      - eventhon_network
+    profiles:
+      - dev
+
+  # ─── Redis Commander (Dev only) ──────────────────────────────────────────
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: eventhon_redis_commander
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    ports:
+      - '8081:8081'
+    networks:
+      - eventhon_network
+    profiles:
+      - dev
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads:
+
+networks:
+  eventhon_network:
+    driver: bridge
