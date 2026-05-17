@@ -8,6 +8,8 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../../common/enums/roles.enum';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { ApiOkResponseWrapped } from '../../common/decorators/api-response-wrapped.decorator';
+import { UserEntity } from '../../common/entities/swagger.entities';
 
 @ApiTags('Users')
 @ApiBearerAuth()
@@ -18,12 +20,14 @@ export class UsersController {
 
   @Get('me')
   @ApiOperation({ summary: 'Get current user full profile' })
+  @ApiOkResponseWrapped(UserEntity)
   async getProfile(@CurrentUser('id') userId: string) {
     return this.usersService.findById(userId);
   }
 
   @Patch('me')
   @ApiOperation({ summary: 'Update current user profile' })
+  @ApiOkResponseWrapped(UserEntity)
   async updateProfile(
     @CurrentUser('id') userId: string,
     @Body() dto: UpdateProfileDto,
@@ -39,6 +43,7 @@ export class UsersController {
 
   @Get('search')
   @ApiOperation({ summary: 'Search users by name or email' })
+  @ApiOkResponseWrapped(UserEntity, true)
   async search(
     @Query('q') query: string,
     @Query('orgId') orgId?: string,

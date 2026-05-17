@@ -37,7 +37,8 @@ export class OrganizationsService {
           slug,
           description: dto.description,
           website: dto.website,
-          status: 'TRIAL',
+          type: dto.type || 'OTHER',
+          status: 'PENDING',
         },
       });
 
@@ -214,5 +215,34 @@ export class OrganizationsService {
       .replace(/\s+/g, '-')
       .replace(/-+/g, '-')
       .substring(0, 50) + '-' + Math.random().toString(36).substring(2, 7);
+  }
+
+  async getAll(status?: string) {
+    const where = status ? { status: status as any } : {};
+    return this.prisma.organization.findMany({
+      where,
+      include: {
+        _count: { select: { members: true, projects: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async updateStatus(orgId: string, status: string, adminId: string) {
+    const org = await this.prisma.organization.update({
+      where: { id: orgId },
+      data: { status: status as any },
+    });
+    
+    this.eventEmitter.emit('activity.log', {
+      organizationId: org.id,
+      actorId: adminId,
+      entity: 'ORGANIZATION',
+      entityId: org.id,
+      action: 'STATUS_CHANGED',
+      after: org,
+    });
+    
+    return org;
   }
 }

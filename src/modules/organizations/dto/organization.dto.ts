@@ -3,6 +3,7 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { MemberRole } from '../../../common/enums/roles.enum';
+import { OrganizationType } from '@prisma/client';
 
 export class CreateOrganizationDto {
   @ApiProperty({ example: 'Acme Corp' })
@@ -21,6 +22,11 @@ export class CreateOrganizationDto {
   @IsOptional()
   @IsUrl()
   website?: string;
+
+  @ApiPropertyOptional({ enum: OrganizationType, default: OrganizationType.OTHER })
+  @IsOptional()
+  @IsEnum(OrganizationType)
+  type?: OrganizationType;
 }
 
 export class UpdateOrganizationDto extends PartialType(CreateOrganizationDto) {}
