@@ -8,6 +8,9 @@ import {
   CreateProjectDto, UpdateProjectDto, AddProjectMemberDto, CreateWorkflowDto, CreateLabelDto,
 } from './dto/project.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { UserRole } from '../../common/enums/roles.enum';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('Projects')
@@ -101,5 +104,20 @@ export class ProjectsController {
   @ApiOperation({ summary: 'Get project activity history' })
   async getActivity(@Param('projectId') projectId: string) {
     return this.projectsService.getProjectActivity(projectId);
+  }
+}
+
+@ApiTags('Projects (Admin)')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Controller('projects')
+export class AdminProjectsController {
+  constructor(private readonly projectsService: ProjectsService) {}
+
+  @Get()
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get all projects across all organizations (Super Admin only)' })
+  async getAllProjects() {
+    return this.projectsService.getAllAdmin();
   }
 }

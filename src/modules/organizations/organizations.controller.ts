@@ -64,6 +64,15 @@ export class OrganizationsController {
     return this.organizationsService.updateStatus(orgId, status, userId);
   }
 
+  @Delete(':orgId')
+  @ApiOperation({ summary: 'Delete organization (Super Admin only)' })
+  async delete(
+    @Param('orgId') orgId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.organizationsService.delete(orgId, userId);
+  }
+
   @Get(':orgId/members')
   @ApiOperation({ summary: 'Get organization members' })
   async getMembers(@Param('orgId') orgId: string) {

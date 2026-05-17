@@ -22,8 +22,11 @@ export class OrganizationsService {
     private eventEmitter: EventEmitter2,
   ) {}
 
-  async create(ownerId: string, dto: CreateOrganizationDto) {
+  async create(creatorId: string, dto: CreateOrganizationDto) {
     const slug = this.generateSlug(dto.name);
+    
+    // Use explicitly provided ownerId if available (for SuperAdmins), otherwise default to the creator
+    const ownerId = dto.ownerId || creatorId;
 
     const existing = await this.prisma.organization.findUnique({ where: { slug } });
     if (existing) {
@@ -61,7 +64,7 @@ export class OrganizationsService {
 
     this.eventEmitter.emit('activity.log', {
       organizationId: org.id,
-      actorId: ownerId,
+      actorId: creatorId,
       entity: 'ORGANIZATION',
       entityId: org.id,
       action: 'CREATED',
@@ -243,6 +246,23 @@ export class OrganizationsService {
       after: org,
     });
     
+    return org;
+  }
+
+  async delete(orgId: string, adminId: string) {
+    const org = await this.prisma.organization.update({
+      where: { id: orgId },
+      data: { deletedAt: new Date(), status: 'SUSPENDED' },
+    });
+    
+    this.eventEmitter.emit('activity.log', {
+      organizationId: org.id,
+      actorId: adminId,
+      entity: 'ORGANIZATION',
+      entityId: org.id,
+      action: 'DELETED',
+    });
+
     return org;
   }
 }

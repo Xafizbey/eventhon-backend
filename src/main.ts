@@ -31,6 +31,7 @@ async function bootstrap() {
       'http://localhost:3000',
       'http://127.0.0.1:3000',
       'http://localhost:3001',
+      'https://eventhon-backend-production.up.railway.app',
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -90,8 +91,8 @@ Send \`join:project\` with \`{ projectId }\` to receive project updates.
       )
       .setVersion('1.0')
       .addBearerAuth()
-      .addServer('http://localhost:3000', 'Development')
-      .addServer('https://api.eventhon.io', 'Production')
+      // .addServer('http://localhost:3000', 'Development')
+      .addServer('https://eventhon-backend-production.up.railway.app', 'Production')
       .setContact('Eventhon Team', 'https://eventhon.io', 'api@eventhon.io')
       .build();
 
@@ -105,7 +106,7 @@ Send \`join:project\` with \`{ projectId }\` to receive project updates.
       customSiteTitle: 'Eventhon API Docs',
     });
 
-    logger.log(`📚 Swagger docs available at: http://localhost:${process.env.PORT || 3000}/api/docs`);
+    logger.log(`📚 Swagger docs available at: https://eventhon-backend-production.up.railway.app/api/docs`);
   }
 
   // ─── Graceful Shutdown ─────────────────────────────────────────────────────
