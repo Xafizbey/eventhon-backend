@@ -47,6 +47,7 @@ export class AuthService {
         lastName: dto.lastName,
         verificationToken,
         status: UserStatus.PENDING_VERIFICATION,
+        ...(dto.role && { role: dto.role as any }),
       },
       select: {
         id: true,
