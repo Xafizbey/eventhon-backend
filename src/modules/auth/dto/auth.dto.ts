@@ -23,6 +23,11 @@ export class RegisterDto {
   @MinLength(8)
   @MaxLength(128)
   password: string;
+
+  @ApiPropertyOptional({ example: 'USER' })
+  @IsString()
+  @IsOptional()
+  role?: string;
 }
 
 export class LoginDto {

@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { IsOptional, IsString, MaxLength } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import * as bcrypt from 'bcryptjs';
 
 export class UpdateProfileDto {
   @ApiPropertyOptional()
@@ -161,6 +162,45 @@ export class UsersService {
     return this.prisma.user.update({
       where: { id: userId },
       data: { role: role as any },
+    });
+  }
+
+  async updateUserAdmin(
+    userId: string,
+    dto: { firstName?: string; lastName?: string; email?: string; role?: string; status?: string },
+  ) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(dto.firstName && { firstName: dto.firstName }),
+        ...(dto.lastName && { lastName: dto.lastName }),
+        ...(dto.email && { email: dto.email.toLowerCase() }),
+        ...(dto.role && { role: dto.role as any }),
+        ...(dto.status && { status: dto.status as any }),
+      },
+    });
+  }
+
+  async createUserAdmin(
+    dto: { firstName: string; lastName: string; email: string; role: string; password?: string },
+  ) {
+    const existing = await this.prisma.user.findUnique({
+      where: { email: dto.email.toLowerCase() },
+    });
+    if (existing) {
+      throw new ConflictException('User with this email already exists');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.password || 'TemporaryPassword123!', 12);
+    return this.prisma.user.create({
+      data: {
+        email: dto.email.toLowerCase(),
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        role: dto.role as any,
+        status: 'ACTIVE',
+        passwordHash,
+      },
     });
   }
 }

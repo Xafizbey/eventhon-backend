@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Patch, Delete, Body, Param, Query, UseGuards, HttpCode, HttpStatus,
+  Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, HttpCode, HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService, UpdateProfileDto } from './users.service';
@@ -94,5 +94,26 @@ export class UsersController {
     @Body('role') role: string,
   ) {
     return this.usersService.updateUserRole(userId, role);
+  }
+
+  @Patch(':userId')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: '[Admin] Update any user details' })
+  async updateUserAdmin(
+    @Param('userId') userId: string,
+    @Body() dto: { firstName?: string; lastName?: string; email?: string; role?: string; status?: string },
+  ) {
+    return this.usersService.updateUserAdmin(userId, dto);
+  }
+
+  @Post()
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: '[Admin] Create a new user' })
+  async createUserAdmin(
+    @Body() dto: { firstName: string; lastName: string; email: string; role: string; password?: string },
+  ) {
+    return this.usersService.createUserAdmin(dto);
   }
 }
