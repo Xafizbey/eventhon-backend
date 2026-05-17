@@ -175,7 +175,7 @@ export class UsersService {
         ...(dto.firstName && { firstName: dto.firstName }),
         ...(dto.lastName && { lastName: dto.lastName }),
         ...(dto.email && { email: dto.email.toLowerCase() }),
-        ...(dto.role && { role: dto.role as any }),
+        ...(dto.role && { role: dto.role === 'USER' ? 'TEAM_MEMBER' : (dto.role as any) }),
         ...(dto.status && { status: dto.status as any }),
       },
     });
@@ -197,7 +197,7 @@ export class UsersService {
         email: dto.email.toLowerCase(),
         firstName: dto.firstName,
         lastName: dto.lastName,
-        role: dto.role as any,
+        role: dto.role === 'USER' ? 'TEAM_MEMBER' : (dto.role as any),
         status: 'ACTIVE',
         passwordHash,
       },
