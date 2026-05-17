@@ -24,6 +24,8 @@ import { Public } from '../../common/decorators/public.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { Request } from 'express';
+import { ApiOkResponseWrapped, ApiCreatedResponseWrapped } from '../../common/decorators/api-response-wrapped.decorator';
+import { UserEntity, SessionEntity } from '../../common/entities/swagger.entities';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -35,7 +37,7 @@ export class AuthController {
   @HttpCode(HttpStatus.CREATED)
   @Throttle({ default: { ttl: 60000, limit: 5 } })
   @ApiOperation({ summary: 'Register a new user account' })
-  @ApiResponse({ status: 201, description: 'User registered successfully' })
+  @ApiCreatedResponseWrapped(UserEntity)
   @ApiResponse({ status: 409, description: 'Email already in use' })
   async register(@Body() dto: RegisterDto, @Req() req: Request) {
     return this.authService.register(dto, {
@@ -49,7 +51,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { ttl: 60000, limit: 10 } })
   @ApiOperation({ summary: 'Login with email and password' })
-  @ApiResponse({ status: 200, description: 'Login successful, returns JWT tokens' })
+  @ApiOkResponseWrapped(UserEntity)
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   async login(@Body() dto: LoginDto, @Req() req: Request) {
     return this.authService.login(dto, {
@@ -114,6 +116,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all active sessions for current user' })
+  @ApiOkResponseWrapped(SessionEntity, true)
   async getSessions(@CurrentUser('id') userId: string) {
     return this.authService.getSessions(userId);
   }
@@ -122,6 +125,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current authenticated user profile' })
+  @ApiOkResponseWrapped(UserEntity)
   async getMe(@CurrentUser() user: any) {
     return user;
   }

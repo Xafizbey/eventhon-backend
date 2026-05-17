@@ -41,9 +41,20 @@ enum OrgPlan {
 }
 
 enum OrgStatus {
+  PENDING
+  APPROVED
+  REJECTED
   ACTIVE
   SUSPENDED
   TRIAL
+}
+
+enum OrganizationType {
+  IT_COMPANY
+  SCHOOL
+  UNIVERSITY
+  NGO
+  OTHER
 }
 
 enum MemberRole {
@@ -184,8 +195,9 @@ model Organization {
   description String?
   logoUrl     String?
   website     String?
+  type        OrganizationType @default(OTHER)
   plan        OrgPlan   @default(FREE)
-  status      OrgStatus @default(TRIAL)
+  status      OrgStatus @default(PENDING)
 
   // Billing
   stripeCustomerId     String?
