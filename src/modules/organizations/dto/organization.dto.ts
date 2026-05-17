@@ -27,6 +27,11 @@ export class CreateOrganizationDto {
   @IsOptional()
   @IsEnum(OrganizationType)
   type?: OrganizationType;
+
+  @ApiPropertyOptional({ description: 'ID of the user to assign as owner. Used by SuperAdmins when creating organizations on behalf of users.' })
+  @IsOptional()
+  @IsString()
+  ownerId?: string;
 }
 
 export class UpdateOrganizationDto extends PartialType(CreateOrganizationDto) {}

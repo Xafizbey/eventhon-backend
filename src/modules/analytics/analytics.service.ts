@@ -165,4 +165,24 @@ export class AnalyticsService {
 
     return results;
   }
+
+  async getSystemMetrics() {
+    const [totalOrgs, activeOrgs, totalUsers, activeUsers, aiAnomalies, totalProjects] = await Promise.all([
+      this.prisma.organization.count({ where: { deletedAt: null } }),
+      this.prisma.organization.count({ where: { status: 'ACTIVE', deletedAt: null } }),
+      this.prisma.user.count({ where: { deletedAt: null } }),
+      this.prisma.user.count({ where: { status: 'ACTIVE', deletedAt: null } }),
+      // Mocking AI anomalies count for now since it's an abstract concept
+      Promise.resolve(34),
+      this.prisma.project.count({ where: { deletedAt: null } }),
+    ]);
+
+    return {
+      organizations: { total: totalOrgs, active: activeOrgs },
+      users: { total: totalUsers, active: activeUsers },
+      projects: { total: totalProjects },
+      aiAnomalies: aiAnomalies,
+      systemLoad: 42, // Mock system load metric
+    };
+  }
 }

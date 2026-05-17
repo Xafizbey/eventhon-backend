@@ -76,4 +76,23 @@ export class UsersController {
   async suspend(@Param('userId') userId: string) {
     return this.usersService.suspendUser(userId);
   }
+
+  @Delete(':userId')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: '[Admin] Delete a user account' })
+  async deleteUser(@Param('userId') userId: string) {
+    return this.usersService.deleteUser(userId);
+  }
+
+  @Patch(':userId/role')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: '[Admin] Update a user role' })
+  async updateRole(
+    @Param('userId') userId: string,
+    @Body('role') role: string,
+  ) {
+    return this.usersService.updateUserRole(userId, role);
+  }
 }

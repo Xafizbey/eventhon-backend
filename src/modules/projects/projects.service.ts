@@ -198,4 +198,16 @@ export class ProjectsService {
       take: 100,
     });
   }
+
+  async getAllAdmin() {
+    return this.prisma.project.findMany({
+      where: { deletedAt: null },
+      include: {
+        owner: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
+        organization: { select: { id: true, name: true } },
+        _count: { select: { tasks: true, members: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
 }

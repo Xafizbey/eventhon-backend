@@ -149,4 +149,18 @@ export class UsersService {
       data: { status: 'SUSPENDED' },
     });
   }
+
+  async deleteUser(userId: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { deletedAt: new Date(), status: 'SUSPENDED' },
+    });
+  }
+
+  async updateUserRole(userId: string, role: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { role: role as any },
+    });
+  }
 }

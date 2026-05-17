@@ -3,6 +3,9 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AnalyticsService } from './analytics.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { UserRole } from '../../common/enums/roles.enum';
 
 @ApiTags('Analytics')
 @ApiBearerAuth()
@@ -39,5 +42,13 @@ export class AnalyticsController {
     @Query('weeks') weeks?: string,
   ) {
     return this.analyticsService.getVelocityMetrics(projectId, parseInt(weeks || '4', 10));
+  }
+
+  @Get('system')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get system level analytics (Super Admin only)' })
+  async getSystemMetrics() {
+    return this.analyticsService.getSystemMetrics();
   }
 }
