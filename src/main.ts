@@ -33,6 +33,7 @@ async function bootstrap() {
       'http://127.0.0.1:3000',
       'http://localhost:3001',
       'https://eventhon-backend-production.up.railway.app',
+      'http://172.20.10.3:8081'
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -107,7 +108,7 @@ Send \`join:project\` with \`{ projectId }\` to receive project updates.
       customSiteTitle: 'Eventhon API Docs',
     });
 
-    logger.log(`📚 Swagger docs available at: https://eventhon-backend-production.up.railway.app/api/docs`);
+    logger.log(`Swagger docs available at: https://eventhon-backend-production.up.railway.app/api/docs`);
   }
 
   // ─── Graceful Shutdown ─────────────────────────────────────────────────────
@@ -116,9 +117,9 @@ Send \`join:project\` with \`{ projectId }\` to receive project updates.
   const port = parseInt(process.env.PORT || '3000', 10);
   await app.listen(port);
 
-  logger.log(`🚀 Eventhon backend running on: http://localhost:${port}`);
-  logger.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  logger.log(`🔌 WebSocket: ws://localhost:${port}/ws`);
+  logger.log(`Eventhon backend running on: http://localhost:${port}`);
+  logger.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  logger.log(`WebSocket: ws://localhost:${port}/ws`);
 }
 
 bootstrap().catch((err) => {
