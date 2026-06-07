@@ -16,11 +16,19 @@ FROM base AS builder
 COPY --from=dev-deps /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate
-RUN set -e && \
-    echo ">>> Starting nest build..." && \
-    npm run build && \
-    echo ">>> Build complete. Verifying dist output..." && \
-    ls -la dist/ && \
+# Step 1: Run tsc --noEmit first so TypeScript errors are printed clearly
+# before nest build has a chance to swallow them.
+RUN echo ">>> Running TypeScript type-check (noEmit)..." && \
+    npx tsc --noEmit 2>&1 || true
+# Step 2: Run the actual build, merging stderr into stdout so nothing is lost.
+RUN echo ">>> Starting nest build..." && \
+    npm run build 2>&1; BUILD_EXIT=$?; \
+    echo ">>> nest build exited with code $BUILD_EXIT"; \
+    exit $BUILD_EXIT
+# Step 3: Print the full dist tree so we can see exactly what was generated.
+RUN echo ">>> Full dist directory structure:" && \
+    find dist/ -print | sort && \
+    echo ">>> Verifying dist/main.js..." && \
     test -f dist/main.js || (echo "ERROR: dist/main.js not found after build" && exit 1) && \
     echo ">>> dist/main.js confirmed."
 
