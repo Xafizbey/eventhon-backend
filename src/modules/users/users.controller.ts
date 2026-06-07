@@ -65,8 +65,19 @@ export class UsersController {
   async findAll(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('role') role?: string,
+    @Query('status') status?: string,
+    @Query('orgId') orgId?: string,
   ) {
-    return this.usersService.findAll(parseInt(page || '1', 10), parseInt(limit || '20', 10));
+    return this.usersService.findAll(
+      parseInt(page || '1', 10),
+      parseInt(limit || '20', 10),
+      search,
+      role,
+      status,
+      orgId,
+    );
   }
 
   @Patch(':userId/suspend')

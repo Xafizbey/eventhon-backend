@@ -63,9 +63,13 @@ export class AuthService {
     // TODO: Send verification email
     // await this.emailService.sendVerificationEmail(user.email, verificationToken);
 
+    // Create session and issue tokens immediately so the client is authenticated
+    const session = await this.createSession(user.id, deviceInfo);
+    const tokens = await this.generateTokens(user.id, user.email, user.role, session.id);
+
     return {
       user,
-      message: 'Registration successful. Please check your email to verify your account.',
+      ...tokens,
     };
   }
 

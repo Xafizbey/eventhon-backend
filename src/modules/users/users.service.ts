@@ -125,21 +125,70 @@ export class UsersService {
   }
 
   // Admin only
-  async findAll(page = 1, limit = 20) {
+  async findAll(
+    page = 1,
+    limit = 20,
+    search?: string,
+    role?: string,
+    status?: string,
+    organizationId?: string,
+  ) {
     const skip = (page - 1) * limit;
+    const whereClause: any = { deletedAt: null };
+
+    if (search) {
+      whereClause.OR = [
+        { firstName: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (role) {
+      whereClause.role = role as any;
+    }
+
+    if (status) {
+      whereClause.status = status as any;
+    }
+
+    if (organizationId) {
+      whereClause.organizationMemberships = {
+        some: {
+          organizationId: organizationId,
+        },
+      };
+    }
+
     const [data, total] = await Promise.all([
       this.prisma.user.findMany({
-        where: { deletedAt: null },
+        where: whereClause,
         select: {
-          id: true, email: true, firstName: true, lastName: true,
-          role: true, status: true, createdAt: true, lastActiveAt: true,
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+          status: true,
+          createdAt: true,
+          lastActiveAt: true,
           _count: { select: { organizationMemberships: true } },
+          organizationMemberships: {
+            select: {
+              organization: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
         },
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
       }),
-      this.prisma.user.count({ where: { deletedAt: null } }),
+      this.prisma.user.count({ where: whereClause }),
     ]);
     return { data, total, page, limit };
   }
