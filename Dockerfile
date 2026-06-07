@@ -16,7 +16,13 @@ FROM base AS builder
 COPY --from=dev-deps /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate
-RUN npm run build
+RUN set -e && \
+    echo ">>> Starting nest build..." && \
+    npm run build && \
+    echo ">>> Build complete. Verifying dist output..." && \
+    ls -la dist/ && \
+    test -f dist/main.js || (echo "ERROR: dist/main.js not found after build" && exit 1) && \
+    echo ">>> dist/main.js confirmed."
 
 # ─── Production ──────────────────────────────────────────────────────────────
 FROM base AS runner
