@@ -18,9 +18,11 @@ COPY --from=dev-deps /app/node_modules ./node_modules
 COPY . .
 # Generate Prisma client before build
 RUN npx prisma generate
-# Build NestJS app — outputs to /app/dist
-RUN npm run build
-# Verify dist was created
+# Check for TypeScript errors explicitly before building
+RUN npx tsc --noEmit 2>&1
+# Build NestJS app — outputs to /app/dist (capture stderr so errors are visible)
+RUN npm run build 2>&1
+# Verify dist was created and contains the expected entry point
 RUN ls -la dist/ && test -f dist/main.js || (echo "ERROR: dist/main.js not found after build!" && exit 1)
 
 # ─── Production ──────────────────────────────────────────────────────────────
