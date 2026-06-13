@@ -16,14 +16,24 @@ RUN npm ci && npm cache clean --force
 FROM base AS builder
 COPY --from=dev-deps /app/node_modules ./node_modules
 COPY . .
+
+# Print config files so any misconfiguration is visible in build logs
+RUN echo "=== nest-cli.json ===" && cat nest-cli.json && \
+    echo "=== tsconfig.build.json ===" && cat tsconfig.build.json && \
+    echo "=== tsconfig.json ===" && cat tsconfig.json
+
 # Generate Prisma client before build
 RUN npx prisma generate
+
 # Check for TypeScript errors explicitly before building
 RUN npx tsc --noEmit 2>&1
-# Build NestJS app — outputs to /app/dist (capture stderr so errors are visible)
-RUN npm run build 2>&1
+
+# Build NestJS app using tsc builder — verbose output, stderr merged so nothing is swallowed
+RUN DEBUG=* npm run build 2>&1 || (echo "ERROR: nest build exited with non-zero status $?" && exit 1)
+
 # Verify dist was created and contains the expected entry point
-RUN ls -la dist/ && test -f dist/main.js || (echo "ERROR: dist/main.js not found after build!" && exit 1)
+RUN echo "=== dist/ contents ===" && ls -la dist/ && \
+    test -f dist/main.js || (echo "ERROR: dist/main.js not found after build!" && exit 1)
 
 # ─── Production ──────────────────────────────────────────────────────────────
 FROM base AS runner
