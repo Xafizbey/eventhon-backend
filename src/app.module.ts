@@ -7,12 +7,19 @@ import { APP_GUARD, APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 
 // Config
 import {
-  appConfig, jwtConfig, databaseConfig, redisConfig,
-  emailConfig, storageConfig, aiConfig, throttleConfig,
+  appConfig,
+  jwtConfig,
+  databaseConfig,
+  redisConfig,
+  emailConfig,
+  storageConfig,
+  aiConfig,
+  throttleConfig,
 } from './config/app.config';
 
 // Core
 import { PrismaModule } from './prisma/prisma.module';
+import { HealthModule } from './health/health.module';
 
 // Common
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -38,7 +45,16 @@ import { WebsocketModule } from './modules/websocket/websocket.module';
     // Configuration — loaded globally
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [appConfig, jwtConfig, databaseConfig, redisConfig, emailConfig, storageConfig, aiConfig, throttleConfig],
+      load: [
+        appConfig,
+        jwtConfig,
+        databaseConfig,
+        redisConfig,
+        emailConfig,
+        storageConfig,
+        aiConfig,
+        throttleConfig,
+      ],
       envFilePath: '.env',
     }),
 
@@ -70,6 +86,9 @@ import { WebsocketModule } from './modules/websocket/websocket.module';
 
     // Database
     PrismaModule,
+
+    // Health check (used by Railway / Docker HEALTHCHECK)
+    HealthModule,
 
     // Feature Modules
     AuthModule,

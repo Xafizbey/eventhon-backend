@@ -33,15 +33,11 @@ async function bootstrap() {
       'http://127.0.0.1:3000',
       'http://localhost:3001',
       'https://eventhon-backend-production.up.railway.app',
-      'http://172.20.10.3:8081'
+      'http://172.20.10.3:8081',
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: [
-      'Content-Type',
-      'Authorization',
-      'x-organization-id',
-    ],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-organization-id'],
   });
 
   // ─── API Versioning ────────────────────────────────────────────────────────
@@ -56,13 +52,13 @@ async function bootstrap() {
   // ─── Validation ────────────────────────────────────────────────────────────
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true,         // Strip unknown properties
+      whitelist: true, // Strip unknown properties
       forbidNonWhitelisted: false,
-      transform: true,         // Auto-transform types (strings to numbers, etc.)
+      transform: true, // Auto-transform types (strings to numbers, etc.)
       transformOptions: {
         enableImplicitConversion: true,
       },
-      stopAtFirstError: false,  // Return all validation errors
+      stopAtFirstError: false, // Return all validation errors
     }),
   );
 
@@ -94,7 +90,10 @@ Send \`join:project\` with \`{ projectId }\` to receive project updates.
       .setVersion('1.0')
       .addBearerAuth()
       // .addServer('http://localhost:3000', 'Development')
-      .addServer('https://eventhon-backend-production.up.railway.app', 'Production')
+      .addServer(
+        'https://eventhon-backend-production.up.railway.app',
+        'Production',
+      )
       .setContact('Eventhon Team', 'https://eventhon.io', 'api@eventhon.io')
       .build();
 
@@ -108,14 +107,16 @@ Send \`join:project\` with \`{ projectId }\` to receive project updates.
       customSiteTitle: 'Eventhon API Docs',
     });
 
-    logger.log(`Swagger docs available at: https://eventhon-backend-production.up.railway.app/api/docs`);
+    logger.log(
+      `Swagger docs available at: https://eventhon-backend-production.up.railway.app/api/docs`,
+    );
   }
 
   // ─── Graceful Shutdown ─────────────────────────────────────────────────────
   app.enableShutdownHooks();
 
   const port = parseInt(process.env.PORT || '3000', 10);
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
 
   logger.log(`Eventhon backend running on: http://localhost:${port}`);
   logger.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
