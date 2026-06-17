@@ -1,8 +1,16 @@
-import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleInit,
+  OnModuleDestroy,
+  Logger,
+} from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+export class PrismaService
+  extends PrismaClient
+  implements OnModuleInit, OnModuleDestroy
+{
   private readonly logger = new Logger(PrismaService.name);
 
   constructor() {
@@ -17,8 +25,29 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 
   async onModuleInit() {
-    await this.$connect();
-    this.logger.log('Database connection established');
+    // Retry connection on startup so a transient DB/network blip during a
+    // deploy (e.g. Supabase pooler cold start) does not crash the container.
+    const maxAttempts = 5;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        await this.$connect();
+        this.logger.log('Database connection established');
+        break;
+      } catch (err) {
+        if (attempt === maxAttempts) {
+          this.logger.error(
+            `Database connection failed after ${maxAttempts} attempts`,
+            err instanceof Error ? err.stack : String(err),
+          );
+          throw err;
+        }
+        const delayMs = attempt * 2000;
+        this.logger.warn(
+          `Database connection attempt ${attempt}/${maxAttempts} failed, retrying in ${delayMs}ms...`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
 
     if (process.env.NODE_ENV === 'development') {
       (this as any).$on('query', (e: any) => {
@@ -69,7 +98,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     `;
     for (const { tablename } of tablenames) {
       if (tablename !== '_prisma_migrations') {
-        await this.$executeRawUnsafe(`TRUNCATE TABLE "public"."${tablename}" CASCADE;`);
+        await this.$executeRawUnsafe(
+          `TRUNCATE TABLE "public"."${tablename}" CASCADE;`,
+        );
       }
     }
   }
